@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PulseGrid — Factory Ripple Monitor</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡</div>
+  <div>
+    <h1>PulseGrid</h1>
+    <div class="subtitle">APEX MOTORS · VEHICLE ASSEMBLY OPERATIONS</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="plant-status"><span class="plant-code">APX-BLR-01</span><span class="plant-location">BENGALURU · INDIA</span></div><div class="live"><span class="dot" id="liveDot"></span><span id="liveTxt">SIMULATING</span></div>
+  <div class="mono" id="clock" style="color:var(--dim); font-size:13px">Shift 00:00</div>
+  <span class="mono" id="userChip" style="display:none; font-size:12px; color:var(--dim)"></span>
+  <button id="voiceBtn" title="Voice announcements on/off">🔊 Voice</button>
+  <button id="logoutBtn" style="display:none">⎋ Logout</button>
+  <button id="pauseBtn">⏸ Pause</button>
+</header>
+
+<nav class="pg-nav" aria-label="Main navigation">
+  <button class="pg-nav-item active" data-page="overview">Overview</button>
+  <button class="pg-nav-item" data-page="machines">Machines</button>
+  <button class="pg-nav-item" data-page="finance">Financials</button>
+  <button class="pg-nav-item" data-page="engineering">Machine upgrades</button>
+  <button class="pg-nav-item" data-page="factory">Factory view</button>
+  <button class="pg-nav-item" data-page="diagnostics">Fault diagnostics</button>
+  <button class="pg-nav-item" data-page="reports">Fault response &amp; reports <span id="incidentNavCount" class="incident-count">0</span></button>
+  <button class="pg-nav-item" data-page="simulator">Fault simulator</button>
+</nav>
+<div class="pg-page" id="page-overview"></div>
+<div class="pg-page" id="page-machines" hidden></div>
+<div class="pg-page" id="page-finance" hidden></div>
+<div class="pg-page" id="page-engineering" hidden></div>
+<div class="pg-page" id="page-factory" hidden></div>
+<div class="pg-page" id="page-diagnostics" hidden></div>
+<div class="pg-page" id="page-reports" hidden></div>
+<div class="pg-page" id="page-simulator" hidden></div>
+
+<div class="kpis">
+  <div class="kpi" id="kpiOut"><div class="label">Vehicle Throughput</div><div class="value" id="vOut">—</div><div class="sub">vehicles / hour (final inspection)</div></div>
+  <div class="kpi" id="kpiEff"><div class="label">Line Efficiency</div><div class="value" id="vEff">—</div><div class="sub">avg of all machines</div></div>
+  <div class="kpi" id="kpiWip"><div class="label">Work In Progress</div><div class="value" id="vWip">—</div><div class="sub">vehicle bodies / units waiting between stages</div></div>
+  <div class="kpi" id="kpiAl"><div class="label">Active Alerts</div><div class="value" id="vAl">0</div><div class="sub">warnings + criticals</div></div>
+</div>
+
+<section>
+  <h2>Vehicle Production Line <span class="tag">7 CONNECTED PRODUCTION ASSETS</span></h2>
+  <div class="grid" id="machineGrid"></div>
+</section>
+
+
+
+<section class="machine-upgrade-section" id="machineUpgradeSection">
+  <div class="section-head">
+    <div>
+      <h2>Machine configuration &amp; upgrades <span class="tag">ADMIN ENGINEERING CONSOLE</span></h2>
+      <p class="section-subtitle">Register a replacement or upgrade an installed asset. Updated capacity and thermal limits immediately become the simulation baseline.</p>
+    </div>
+    <span class="config-save-state" id="configSaveState">CONFIGURATION LOADED</span>
+  </div>
+  <div class="upgrade-layout">
+    <div class="upgrade-form">
+      <label for="configMachine">Production asset</label>
+      <select id="configMachine"></select>
+      <div class="upgrade-current" id="upgradeCurrent">Current asset details will appear here.</div>
+      <div class="upgrade-fields">
+        <label>Machine name<input id="cfgName" maxlength="90"></label>
+        <label>Model / equipment ID<input id="cfgModel" maxlength="80"></label>
+        <label>Production stage<input id="cfgStage" maxlength="60"></label>
+        <label>Rated capacity <span>(vehicles/hour)</span><input id="cfgCapacity" type="number" min="1" max="200" step="0.5"></label>
+        <label>Normal sensor temperature <span>(°C)</span><input id="cfgSetpoint" type="number" min="-20" max="500" step="0.5"></label>
+        <label>Warning threshold <span>(°C)</span><input id="cfgWarn" type="number" min="-20" max="550" step="0.5"></label>
+        <label>Critical threshold <span>(°C)</span><input id="cfgCritical" type="number" min="-20" max="550" step="0.5"></label>
+        <label>Reliability rating <span>(%)</span><input id="cfgReliability" type="number" min="50" max="100" step="0.5"></label>
+        <label>Operating hours <span>(h)</span><input id="cfgHours" type="number" min="0" max="200000" step="1"></label>
+      </div>
+      <div class="upgrade-actions">
+        <button type="button" id="cfgReset" class="secondary-btn">Discard changes</button>
+        <button type="button" id="cfgSave" class="primary-btn">Save machine configuration</button>
+      </div>
+      <div class="upgrade-note">Engineering values are illustrative demo baselines. Before using real plant data, validate ratings and alarm limits against OEM documentation, process engineering and site safety procedures.</div>
+    </div>
+    <aside class="upgrade-impact">
+      <h3>What changes when you upgrade?</h3>
+      <div class="upgrade-impact-item"><b>Capacity model</b><span>Throughput and line bottleneck estimates use the new rated capacity.</span></div>
+      <div class="upgrade-impact-item"><b>Thermal monitoring</b><span>Warnings and critical alerts use the replacement machine's configured thresholds.</span></div>
+      <div class="upgrade-impact-item"><b>Reliability factor</b><span>The equipment reliability assumption influences its modeled effective capacity.</span></div>
+      <div class="upgrade-impact-item"><b>Ripple predictions</b><span>Queue buildup, downstream starvation and predicted output are recalculated on subsequent simulation ticks.</span></div>
+      <div class="upgrade-impact-result" id="upgradeImpactResult">Select an asset to inspect its installed configuration.</div>
+    </aside>
+  </div>
+</section>
+
+<section class="factory-section" aria-labelledby="factoryTitle">
+  <div class="factory-heading">
+    <h2 id="factoryTitle">3D Factory View <span class="tag">INTERACTIVE LIVE LINE</span></h2>
+    <div class="factory-hint">Drag to orbit · scroll to zoom · select a station for live diagnostics</div>
+  </div>
+  <div class="factory-layout">
+    <div class="factory-canvas-wrap">
+      <canvas id="factoryCanvas" aria-label="Interactive 3D view of the seven connected automotive production assets">
+        Your browser does not support the canvas needed for the 3D factory view.
+      </canvas>
+      <div class="factory-canvas-caption"><span class="factory-live-dot"></span><span id="factoryFlowState">Live simulation · machine colors follow current status</span></div>
+    </div>
+    <aside class="factory-side" aria-label="Factory machine details">
+      <div class="factory-side-title">Select a station</div>
+      <div class="factory-machines" id="factoryMachines"></div>
+      <div class="factory-detail" aria-live="polite">
+        <div class="factory-detail-label">Selected production asset</div>
+        <div class="factory-detail-name" id="factoryDetailName">Furnace</div>
+        <div class="factory-detail-status" id="factoryDetailStatus">OK</div>
+        <div class="factory-detail-row"><span>Output</span><b id="factoryDetailOutput">—</b></div>
+        <div class="factory-detail-row"><span>Queue after</span><b id="factoryDetailQueue">—</b></div>
+        <div class="factory-detail-row" id="factoryTempRow"><span>Temperature</span><b id="factoryDetailTemp">—</b></div>
+      </div>
+      <button id="factoryResetView" class="factory-reset" type="button">↻ Reset view</button>
+      <div class="factory-legend"><span><i class="legend-ok"></i>Healthy</span><span><i class="legend-warn"></i>Warning</span><span><i class="legend-crit"></i>Critical</span></div>
+    </aside>
+  </div>
+</section>
+
+<section>
+  <h2>Production Dependency Map <span class="tag">UPSTREAM & DOWNSTREAM IMPACT</span></h2>
+  <div class="ripple-wrap">
+    <svg id="rippleSvg" width="960" height="230" viewBox="0 0 960 230"></svg>
+  </div>
+</section>
+
+<section class="impact-section" aria-labelledby="impactTitle">
+  <div class="impact-head"><h2 id="impactTitle">Fault diagnosis &amp; ripple impact <span class="tag">ROOT CAUSE ANALYSIS</span></h2><span class="impact-state" id="impactState">NO ACTIVE FAULTS</span></div>
+  <p class="diagnostics-intro">This page explains what triggered an alert, which production stages are exposed, and the next operator action. It combines live machine telemetry, active fault scope, throughput constraints, queues and downstream impact; it does not replace OEM or site safety procedures.</p>
+  <div class="diagnostics-method"><span><b>1 · Detect</b> temperature, speed, availability and queue anomalies</span><span><b>2 · Assess</b> local versus line-wide production impact</span><span><b>3 · Respond</b> follow the recommended rectification and verify recovery</span></div>
+  <div class="impact-grid"><div><div class="impact-label">Detected problem</div><div class="impact-problem" id="impactProblem">All production assets are operating within their configured demonstration limits.</div><div class="impact-detail" id="impactDetail">PulseGrid continuously evaluates temperature deviation, line speed, queue accumulation and machine availability.</div></div>
+  <div><div class="impact-label">Affected downstream assets</div><div class="impact-assets" id="impactAssets"><span class="impact-none">No downstream impact detected.</span></div></div>
+  <div><div class="impact-label">Recommended operator response</div><div class="impact-action" id="impactAction">Continue monitoring. Review alerts if a machine deviates from its baseline.</div></div></div>
+</section>
+
+<div class="split">
+  <section>
+    <h2>Early Warning Panel <span class="tag">PREDICTIVE</span></h2>
+    <div class="alerts-list" id="alertsList"><div class="empty">No anomalies detected. Line is healthy.</div></div>
+  </section>
+
+  <section>
+    <h2>What-If Planner</h2>
+    <div class="slider-row">
+      <label>Conveyor B speed <b class="mono" id="sliderVal">100%</b></label>
+      <input type="range" id="whatIf" min="30" max="100" value="100">
+    </div>
+    <div class="proj">
+      <div class="label" style="color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:1px">Projected line output</div>
+      <div class="big" id="projOut">—</div>
+      <div id="projDelta" class="delta-flat" style="font-size:12px; margin-top:4px">vs current</div>
+      <div class="insight" id="projNote">Move the slider to simulate rebalancing the line before problems hit.</div>
+    </div>
+    <button id="applyBtn" style="margin-top:12px">Apply to simulation</button>
+    <div class="insight">Tip: slowing a mid-line machine slightly can <b>drain queues</b> upstream with almost no output loss — a hidden inefficiency conventional dashboards miss.</div>
+  </section>
+</div>
+
+<section class="fault-sim-section" id="faultSimulatorSection">
+  <h2>Fault injection console <span class="tag">CONTROLLED SCENARIO TEST</span></h2>
+  <p class="section-subtitle">Select a production asset and inject a simulated fault. The running model will update machine status, alarms, queue behavior and downstream impact.</p>
+  <div class="fault-sim-grid">
+    <label>Machine
+      <select id="simFaultMachine">
+        <option value="furnace">Body Stamping Press</option>
+        <option value="mixer">Body Welding Robot Cell</option>
+        <option value="convA">Body Transfer Conveyor</option>
+        <option value="press">Paint Curing Oven</option>
+        <option value="cooler">Paint Cooling Tunnel</option>
+        <option value="convB">Final Assembly Conveyor</option>
+        <option value="packer">End-of-Line Inspection &amp; Dispatch</option>
+      </select>
+    </label>
+    <label>Fault scenario
+      <select id="simFaultType">
+        <option value="stop">Machine stoppage</option>
+        <option value="slow">Reduced operating speed (50%)</option>
+        <option value="overheat">Thermal excursion</option>
+        <option value="jam">Mechanical jam / blocked transfer</option>
+      </select>
+    </label>
+    <label>Severity
+      <select id="simFaultSeverity">
+        <option value="warning">Warning — reduced capacity</option>
+        <option value="critical" selected>Critical — machine unavailable</option>
+        <option value="emergency">Emergency — stop whole production line</option>
+      </select>
+    </label>
+    <label>Impact scope
+      <select id="simFaultScope">
+        <option value="machine" selected>Local machine only</option>
+        <option value="line">Production line — stop all machines</option>
+      </select>
+    </label>
+    <button type="button" class="danger" id="runFaultScenario">Inject selected fault</button>
+    <button type="button" id="clearFaultScenario">Clear simulated faults</button>
+  </div>
+  <div id="faultScenarioStatus" class="fault-sim-status" aria-live="polite">No manually injected fault is active. Injected faults remain active until cleared by the operator.</div>
+  <div class="fault-sim-note">Simulation only. Fault scenarios are synthetic test inputs and do not connect to PLCs, safety systems or physical equipment.</div>
+</section>
+
+<section style="background:transparent; border:none; padding:0">
+  <div class="fault-bar" style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 16px">
+    <span class="lbl">Demo controls</span>
+    <button class="warn" id="btnCooler">⚠ Inject: Cooling tunnel overheat</button>
+    <button class="danger" id="btnJam">⛔ Inject: Body transfer jam</button>
+    <button class="warn" id="btnPower">⚡ Inject: Plant power dip</button>
+    <button id="btnFix">✅ Resolve all</button>
+    <button id="btnReset">↺ Reset</button>
+  </div>
+</section>
+
+<section id="faultResponsePage" class="fault-response-page">
+  <div class="fault-response-heading"><div><h2>Fault response centre <span class="tag">FAULT REPORTS · OPERATOR WORKFLOW</span></h2><p class="section-subtitle">Automatic and manually generated incidents appear here and in the factory view. Inspect the report, then acknowledge and rectify the fault to restore the machine.</p></div><div class="incident-summary"><b id="activeIncidentCount">0</b><span>ACTIVE INCIDENTS</span></div></div>
+  <div class="fault-response-banner" id="faultResponseBanner">All monitored machines are currently clear. Random training incidents may occur while the simulation runs.</div>
+  <div class="fault-response-columns"><div class="finance-panel"><h3>Active incident reports</h3><div id="activeIncidentReports" class="incident-list"><p class="empty">No active incidents. Keep the simulation running.</p></div></div><div class="finance-panel"><h3>Incident history</h3><div id="incidentHistory" class="incident-list"><p class="empty">Resolved incidents will appear here.</p></div></div></div>
+  <p class="finance-disclaimer">Training simulation only. Random faults are synthetic events with illustrative repair instructions. They do not represent real equipment diagnostics, and repair steps must never replace OEM procedures, permits or lockout/tagout requirements.</p>
+</section>
+
+<section class="finance-page" id="financeDashboard">
+  <div class="finance-heading"><div><h2>Plant financial performance <span class="tag">LIVE SIMULATED LEDGER</span></h2><p class="section-subtitle">A running estimate of production value earned and contribution opportunity lost as line output changes.</p></div><div class="finance-live"><i></i> UPDATING EACH SIMULATION MINUTE</div></div>
+  <div class="finance-controls">
+    <label>Contribution value per completed vehicle (₹)<input id="financeMargin" type="number" min="1" max="10000000" step="500" value="8000"></label>
+    <label>Planned production rate (vehicles/hour)<input id="financePlanRate" type="number" min="1" max="200" step="0.5" value="46"></label>
+    <button type="button" id="financeReset" class="secondary-btn">Reset financial counters</button>
+  </div>
+  <div class="finance-kpis">
+    <article class="finance-card earned"><span>Estimated contribution earned</span><strong id="finEarned">₹0</strong><small>Completed vehicles × editable contribution assumption</small></article>
+    <article class="finance-card lost"><span>Estimated contribution lost</span><strong id="finLost">₹0</strong><small>Shortfall against planned output</small></article>
+    <article class="finance-card"><span>Current loss exposure / hour</span><strong id="finExposure">₹0</strong><small>Current line-rate shortfall × contribution value</small></article>
+    <article class="finance-card"><span>Net estimated contribution</span><strong id="finNet">₹0</strong><small>Earned value less modeled opportunity loss</small></article>
+  </div>
+  <div class="finance-grid">
+    <div class="finance-panel"><h3>Live production economics</h3><div class="finance-stat-row"><span>Planned output rate</span><b id="finPlan">46 vehicles/hr</b></div><div class="finance-stat-row"><span>Actual line output rate</span><b id="finActual">—</b></div><div class="finance-stat-row"><span>Output shortfall</span><b id="finShortfall">—</b></div><div class="finance-stat-row"><span>Estimated units produced this session</span><b id="finUnits">0.00</b></div><div class="finance-stat-row"><span>Estimated units missed this session</span><b id="finMissed">0.00</b></div><div class="finance-progress"><i id="finProgress"></i></div><small>Actual output as a share of planned output</small></div>
+    <div class="finance-panel"><h3>Where the loss is coming from</h3><div id="finMachineBreakdown" class="finance-breakdown"><p>Waiting for simulation data…</p></div></div>
+  </div>
+  <div class="finance-panel finance-ledger"><div class="finance-ledger-head"><h3>Financial event ledger</h3><span id="finLedgerCount">0 events</span></div><div class="finance-ledger-list" id="finLedger"><p>Financial events will appear when production deviates from plan.</p></div></div>
+  <p class="finance-disclaimer">Important: These are illustrative estimates, not actual company revenue, cash income, accounting profit or audited losses. The per-vehicle value defaults to an illustrative ₹8,000 contribution assumption (not vehicle selling price); adjust it to a finance-approved figure for any credible analysis. A real deployment needs approved finance data, actual good-unit counts, scrap/rework, labor, energy, maintenance, inventory buffers, shift calendars and ERP/MES integration. Simulation runs faster than wall-clock time: one tick represents one modeled production minute.</p>
+</section>
+
+<footer>
+  PulseGrid · Apex Motors Bengaluru Vehicle Assembly Plant · Simulated telemetry for demonstration. Engineering assumptions are illustrative, not OEM-certified limits or live plant measurements.
+</footer>
+
+<script src="js/app.js"></script>
+<script src="js/random_faults.js"></script>
+<script src="js/navigation.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+backend/data/*.db
+backend/data/*.sqlite*
+__pycache__/
+*.py[cod]
+.DS_Store
